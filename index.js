@@ -7,11 +7,12 @@ const FUNCTIONS = require('./functions');
 
 client.on('ready', function() {
     console.log('Logged in as \"'+client.user.username + '\"');
-    mongoose.connect('mongodb://localhost:27017/test');
-
-    var schema = new ({ name: String });
-    var Page = mongoose.model('Page', schema);
-    var p = new Page({ name: 'mongodb.org' });
+    mongoose.connect('mongodb://localhost:27017/test', function (err) {
+        if(err)
+            console.log('erreur de connection a la base de données');
+        else
+            console.log('connecté a la base de données');
+    });
 });
 
 client.on('message', function(msg) {
@@ -27,7 +28,7 @@ client.on('message', function(msg) {
             case 'dbconnect' :
                 return FUNCTIONS.dbconnect(msg, mongoose);
             default:
-                return msg.reply('Commande non reconnue');
+                return msg.reply('Commande Invalide');
 
         }
     }
