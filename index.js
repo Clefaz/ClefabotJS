@@ -7,15 +7,15 @@ const bot = new Discord.Client();
 const FUNCTIONS = {};
 
 ///////////////////////////////////Schema de quotes
-CitationSchema = new mongoose.Schema({
-author : String, // le mec qui a écrit ça (son nom)
-submitted_by : String, // le mec qui a envoyé la citation (son nom)
-quote : String // la citation
+QuoteSchema = new mongoose.Schema({
+    author : String, // le mec qui a écrit ça (son nom)
+    submitted_by : String, // le mec qui a envoyé la citation (son nom)
+    quote : String, // la citation
 });
 
 ///////////////////////////////////Connexion a la base de données
 if (mongoose.connection.readyState == 0){
-    mongoose.connect('mongodb://localhost:27017/test', function (err) {
+    mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
         if(err)
             console.log('erreur de connection a la base de données');
         else
@@ -23,46 +23,46 @@ if (mongoose.connection.readyState == 0){
     });
 }
 
-function concatenateArgs(args) {
-    var t = '';
-    for(var i = 0; i < args.length; i++) {
-        t += args;
-        if(i + 1 != args.length) {
-            t += ' ';
-        }
-    }
-    return t;
-}
-
 ///////////////////////////////////Commandes
 FUNCTIONS.ping = function(msg) {
-    msg.reply('pong !');
-};
+    msg.reply('pong ! #joke');
+};    //DONE
 
 FUNCTIONS.help = function(msg) {
-
-    msg.reply('je t\'aide !');
-};
-
-FUNCTIONS.say = function(msg, args) {
-    var string = concatenateArgs(args);
-};
+    msg.author.sendMessage('help sent');
+    msg.reply('je viens de t\'envoyer un MP avec de l\'aide');
+};   //TODO Completer l'aide
 
 FUNCTIONS.dbcheck = function(msg){
-    var status = mongoose.connection.readyState==1?'online':'offline';
-    msg.reply('`Database state: ' + status + '`');
-};
+    var status = mongoose.connection.readyState==1?'online':'offline /!\\ Contactez Clefaz.';
+    msg.channel.sendMessage('`Etat de la base de données : ' + status + '`');
+};  //DONE
 
-FUNCTIONS.quote = function (msg) {
-    mongoose.model('Citations', CitationSchema);
+FUNCTIONS.invit = function (msg) {
+    bot.createInvite(msg.channel,{maxAge:1800,maxUses:1});
+};  //TODO faire la fonction !invite
+
+FUNCTIONS.deletemessages = function(msg, args) {
+    var limite = 1 + parseInt(args[1]);
+    if (limite == null || limite > 100)
+        return;
+    msg.channel.fetchMessages({limit: limite})
+        .then(function(messages) {
+            //msg.channel.bulkDelete(messages);
+        });
+};  //TODO fixer le deletemessage
+
+function quote(msg) {
+    mongoose.model('Quotes', QuoteSchema);
 
     var quote = msg.content.split('\"');
     if (quote.length != 3) {
-        msg.reply('quote invalide');
+        msg.channel.sendMessage('```MARKDOWN\n\#Quote Invalide\n' +
+            '-> " insert quote here " -Auteur ```');
         return;
     }
 
-    var tmp = new mongoose.models.Citations();
+    var tmp = new mongoose.models.Quotes();
 
     var auteur = quote[2].split('-');
     tmp.author = auteur[auteur.length - 1];
@@ -75,7 +75,7 @@ FUNCTIONS.quote = function (msg) {
         if (err){
             console.log('erreur sauvegarde', err);
             msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde\n' +
-                                    'Attention a ! ```');
+                'Attention a ! ```');
         }else {
             console.log('citation enregistrée');
             msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
@@ -84,11 +84,7 @@ FUNCTIONS.quote = function (msg) {
                 'envoyé par = ' + tmp.submitted_by + '```');
         }
     });
-}
-
-FUNCTIONS.invit = function (msg) {
-    bot.createInvite(msg.channel,{maxAge:1800,maxUses:1});
-};
+};  //TODO ajouter la date et l'ID
 //
 
 ///////////////////////////////////Events
@@ -104,20 +100,20 @@ bot.on('message', function(msg) {
                 return FUNCTIONS.ping(msg);
             case 'help':
                 return FUNCTIONS.help(msg);
-            case 'say':
-                return FUNCTIONS.say(msg, args);
             case 'dbcheck' :
                 return FUNCTIONS.dbcheck(msg);
             case 'invit' :
                 return FUNCTIONS.invit(msg);
+            case 'delete' :
+                return FUNCTIONS.deletemessages(msg,args);
             default:
                 return msg.reply('Commande Invalide');
         }
     }
     if(args[0].substr(0, 1) == '\"' && msg.channel.name === 'quote')
-        return FUNCTIONS.quote(msg, args);
+        return quote(msg);
 });
-
+//
 
 ///////////////////////////////////Connexion au serveur
 bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C2D5Ww.lPi1isP-nFOAkD2HUp3brzg7y8Y');
