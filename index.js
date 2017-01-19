@@ -1,17 +1,69 @@
 const Discord = require("discord.js");
-var mongoose = require('./mongoose.js');
+const mongoose = require('mongoose');
 
-const client = new Discord.Client();
+const bot = new Discord.Client();
 
 const PREFIX_CMD = '!';
-const FUNCTIONS = require('./functions');
+const FUNCTIONS = {};
 
+///////////////////////////////////Connexion a la base de données
+if (mongoose.connection.readyState == 0){
+    mongoose.connect('mongodb://localhost:27017/test', function (err) {
+        if(err)
+            console.log('erreur de connection a la base de données');
+        else
+            console.log('connecté a la base de données');
+    });
+}
 
-client.on('ready', function() {
-    console.log('Logged in as \"' + client.user.username + '\"');
+function concatenateArgs(args) {
+    var t = '';
+    for(var i = 0; i < args.length; i++) {
+        t += args;
+        if(i + 1 != args.length) {
+            t += ' ';
+        }
+    }
+    return t;
+}
+
+///////////////////////////////////Commandes
+FUNCTIONS.ping = function(msg) {
+    msg.reply('pong !');
+};
+
+FUNCTIONS.help = function(msg) {
+
+    msg.reply('je t\'aide !');
+};
+
+FUNCTIONS.say = function(msg, args) {
+    var string = concatenateArgs(args);
+};
+
+FUNCTIONS.dbcheck = function(msg){
+    var status = mongoose.connection.readyState==1?'online':'offline';
+    msg.reply('`Database state: ' + status + '`');
+};
+
+FUNCTIONS.dbinit = function (msg) {
+    mongoose.Schema({
+        name: { type: String, index: true },
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }
+    });
+};
+
+FUNCTIONS.invit = function (msg) {
+    bot.createInvite(msg.channel,{maxAge:1800,maxUses:1});
+};
+//
+
+///////////////////////////////////Events
+bot.on('ready', function() {
+    console.log('Logged in as \"' + bot.user.username + '\"');
 });
 
-client.on('message', function(msg) {
+bot.on('message', function(msg) {
     var args = msg.content.split(' ');
     if(args[0].substr(0, 1) == PREFIX_CMD) {
         switch(args[0].substr(1)) {
@@ -29,12 +81,10 @@ client.on('message', function(msg) {
                 return FUNCTIONS.invit(msg);
             default:
                 return msg.reply('Commande Invalide');
-
         }
     }
-
 });
 
 
-
-client.login('MjcwODM4NTg4MjIzMTI3NTUy.C2D5Ww.lPi1isP-nFOAkD2HUp3brzg7y8Y');
+///////////////////////////////////Connexion au serveur
+bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C2D5Ww.lPi1isP-nFOAkD2HUp3brzg7y8Y');
