@@ -62,7 +62,7 @@ FUNCTIONS.quote = function (msg) {
         return;
     }
 
-    var tmp = new mongoose.models.CitationModel();
+    var tmp = new mongoose.models.Citations();
 
     var auteur = quote[2].split('-');
     tmp.author = auteur[auteur.length - 1];
@@ -72,14 +72,17 @@ FUNCTIONS.quote = function (msg) {
     console.log(tmp);
 
     tmp.save(function (err) {
-        if (err)
+        if (err){
             console.log('erreur sauvegarde', err);
-        else
+            msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde\n' +
+                                    'Attention a ! ```');
+        }else {
             console.log('citation enregistrée');
             msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
-                                    'quote = '+ tmp.quote + '\n' +
-                                    'auteur = '+ tmp.author + '\n' +
-                                    'envoyé par = '+ tmp.submitted_by + '```');
+                'quote = ' + tmp.quote + '\n' +
+                'auteur = ' + tmp.author + '\n' +
+                'envoyé par = ' + tmp.submitted_by + '```');
+        }
     });
 }
 
