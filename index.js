@@ -1,9 +1,9 @@
 const Discord = require("discord.js");
 const mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
 
 const bot = new Discord.Client();
 
-const PREFIX_CMD = '!';
 const FUNCTIONS = {};
 
 ///////////////////////////////////Schema de quotes
@@ -53,12 +53,35 @@ FUNCTIONS.dbcheck = function(msg){
     msg.reply('`Database state: ' + status + '`');
 };
 
-FUNCTIONS.dbinit = function (msg) {
-    mongoose.Schema({
-        name: { type: String, index: true },
-        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }
+FUNCTIONS.quote = function (msg) {
+    mongoose.model('Citations', CitationSchema);
+
+    var quote = msg.content.split('\"');
+    if (quote.length != 3) {
+        msg.reply('quote invalide');
+        return;
+    }
+
+    var tmp = new mongoose.models.CitationModel();
+
+    var auteur = quote[2].split('-');
+    tmp.author = auteur[auteur.length - 1];
+    tmp.submitted_by = msg.author.username;
+    tmp.quote = quote[1];
+
+    console.log(tmp);
+
+    tmp.save(function (err) {
+        if (err)
+            console.log('erreur sauvegarde', err);
+        else
+            console.log('citation enregistrée');
+            msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
+                                    'quote = '+ tmp.quote + '\n' +
+                                    'auteur = '+ tmp.author + '\n' +
+                                    'envoyé par = '+ tmp.submitted_by + '```');
     });
-};
+}
 
 FUNCTIONS.invit = function (msg) {
     bot.createInvite(msg.channel,{maxAge:1800,maxUses:1});
@@ -72,7 +95,7 @@ bot.on('ready', function() {
 
 bot.on('message', function(msg) {
     var args = msg.content.split(' ');
-    if(args[0].substr(0, 1) == PREFIX_CMD) {
+    if(args[0].substr(0, 1) == '!') {
         switch(args[0].substr(1)) {
             case 'ping':
                 return FUNCTIONS.ping(msg);
@@ -82,14 +105,14 @@ bot.on('message', function(msg) {
                 return FUNCTIONS.say(msg, args);
             case 'dbcheck' :
                 return FUNCTIONS.dbcheck(msg);
-            case 'dbinit' :
-                return FUNCTIONS.dbinit(msg);
             case 'invit' :
                 return FUNCTIONS.invit(msg);
             default:
                 return msg.reply('Commande Invalide');
         }
     }
+    if(args[0].substr(0, 1) == '\"' && msg.channel.name === 'quote')
+        return FUNCTIONS.quote(msg, args);
 });
 
 
