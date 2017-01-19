@@ -6,6 +6,13 @@ const bot = new Discord.Client();
 const PREFIX_CMD = '!';
 const FUNCTIONS = {};
 
+///////////////////////////////////Schema de quotes
+CitationSchema = new mongoose.Schema({
+author : String, // le mec qui a écrit ça (son nom)
+submitted_by : String, // le mec qui a envoyé la citation (son nom)
+quote : String // la citation
+});
+
 ///////////////////////////////////Connexion a la base de données
 if (mongoose.connection.readyState == 0){
     mongoose.connect('mongodb://localhost:27017/test', function (err) {
