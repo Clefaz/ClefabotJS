@@ -1,18 +1,14 @@
 const Discord = require("discord.js");
-const mongoose = require("mongoose");
+var mongoose = require('./mongoose.js');
+
 const client = new Discord.Client();
+
 const PREFIX_CMD = '!';
 const FUNCTIONS = require('./functions');
 
 
 client.on('ready', function() {
-    console.log('Logged in as \"'+client.user.username + '\"');
-    mongoose.connect('mongodb://localhost:27017/test', function (err) {
-        if(err)
-            console.log('erreur de connection a la base de données');
-        else
-            console.log('connecté a la base de données');
-    });
+    console.log('Logged in as \"' + client.user.username + '\"');
 });
 
 client.on('message', function(msg) {
@@ -25,8 +21,12 @@ client.on('message', function(msg) {
                 return FUNCTIONS.help(msg);
             case 'say':
                 return FUNCTIONS.say(msg, args);
-            case 'dbconnect' :
-                return FUNCTIONS.dbconnect(msg, mongoose);
+            case 'dbcheck' :
+                return FUNCTIONS.dbcheck(msg);
+            case 'dbinit' :
+                return FUNCTIONS.dbinit(msg);
+            case 'invit' :
+                return FUNCTIONS.invit(msg);
             default:
                 return msg.reply('Commande Invalide');
 

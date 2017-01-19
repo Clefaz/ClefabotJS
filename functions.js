@@ -1,3 +1,5 @@
+var mongoose = require('./mongoose.js');
+
 var FUNCTIONS = {};
 
 function concatenateArgs(args) {
@@ -23,8 +25,25 @@ FUNCTIONS.say = function(msg, args) {
     var string = concatenateArgs(args);
 };
 
-FUNCTIONS.dbconnect = function(msg, mongoose){
-    msg.channel.sendMessage('ok');
-}
+FUNCTIONS.dbcheck = function(msg){
+    var status = mongoose.connection.readyState==1?'online':'offline';
+    msg.reply('`Database state: ' + status + '`');
+};
+
+FUNCTIONS.dbinit = function (msg) {
+    mongoose.Schema({
+        name: { type: String, index: true },
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }
+    });
+};
+
+FUNCTIONS.invit = function (msg) {
+    msg.client.createInvite(msg.channel,null,function (msg) {
+        if (err)
+            msg.channel.sendMessage("erreur, consultez @clefaz");
+        else
+            msg.channel.sendMessage(invite);
+    });
+};
 
 module.exports = FUNCTIONS;
