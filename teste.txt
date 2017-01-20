@@ -1,0 +1,106 @@
+mongoose.models.[MODEL].find({[CONDITION SUR LES CHAMPS]}, '[CHAMPS QUE TU VEUX RECUPERER]', {[OPTIONS]}, function(_err, _results) {
+	if(err) {
+		//err
+	} else {
+	console.log(_results); // les résultats
+	}
+});
+
+[MODEL] = ton model, "CitationModel" par exemple
+
+-----------------------------------------------------
+
+[CONDITION SUR LES CHAMPS] = des conditions sous forme d'objet json du style :
+
+{author : 'Maxou'} // ne renverra que les [MODEL] dont le champ "author" vaut "Maxou" (sensible à la case il me semble, donc 'Maxou' != 'maxou' != 'maxOu'...)
+{author : 'Maxou', submitted_by : 'Clefaz'} // ne renverra que les [MODEL] dont le champ "author" vaut "Maxou" et "submitted_by" vaut "Clefaz"
+
+tu as aussi des "plus grand que" (pour des entier par exemple) et "plus petit que":
+{ age : {$gt : 17, $lt : 66} } // ne renverra que les [MODEL] dont le champ "age" est plus grand que (Greater Than = $gt) "17" et moins grand que (Less than = $lt) "66".
+
+tu peux aussi avoir "dans"
+{author : {$in : ['Maxou', 'Clefaz'] } } // ne renverra que les [MODEL] dont le champ "author" est SOIT "Maxou" SOIT "Clefaz"
+
+tu peux aussi avoir "ou"
+{ $or : [ { author : 'Maxou' }, { submitted_by : 'Clefaz'} ] } // ne renverra que les [MODEL] qui ont le champ "author" égal à "Maxou" et/ou le champ "submitted_by" à "Clefaz"
+
+le "et" se fait automatiquement comme vu dans :
+{author : 'Maxou', submitted_by : 'Clefaz'} // ne renverra que les [MODEL] dont le champ "author" vaut "Maxou" et "submitted_by" vaut "Clefaz"
+
+-----------------------------------------------------
+
+[CHAMPS QUE TU VEUX RECUPERER] = les champs de tes [MODEL] que tu veux récuperer au moment de ton find
+
+admettons par exemple dans mon bot que je veuille savoir combien d'argent sont en attente dans des paris (et JUSTE/UNIQUEMENT CELA, RIEN D'AUTRE !)
+
+mon BetModel est comme cela :
+var BetSchema = new Schema({
+    from : {type: Schema.Types.ObjectId, ref: 'PlayerModel'}, // le joueur qui a fait le pari
+    amount : String, // le montant du pari
+    gain : String, // le gain potentiel en fonction de la cote de l'équipe sur le match
+    match : {type : Schema.Types.ObjectId, ref: 'MatchModel'}, // match sur lequel porte le pari
+    team : {type : Schema.Types.ObjectId, ref: 'TeamModel'}, // l'équipe du match sur lequel porte le pari
+    status : Number, // le statut du pari 0 = en attente / 1 = gagné / 2 = perdu
+    added_at : Date // la date d'ajout du pari
+});
+
+du coup dans cette "requête" (on appelle le fait de récupérer des données de la base de données des "requêtes"), je ne souhaite avoir que le champ "gain"
+
+du coup ma requête va ressembler à ça :
+
+mongoose.models.BetModel.find({status : 0}, 'gain', {}, function(_err, _results) {
+	if(err) {
+		//err
+	} else {
+	console.log(_results); // les résultats
+	}
+});
+
+dans mes _results je n'aurais que ça :
+[{
+ gain : 20
+ },
+ {
+ gain : 30
+ },
+ {
+ gain : 45
+ },
+ {
+ gain : 10
+ }]
+
+un tableau d'objet json avec juste un champ "gain"
+et c'est tout ce dont j'avais besoin, j'aurais pu qu'à faire une boucle for, cumuler les valeurs... blablabla => "return total;"
+
+-----------------------------------------------------
+
+[OPTIONS] = un objet json qui te permet de spécifier certaines options pour tes résultats
+
+tu peux avoir
+{ limit : 1 } // ne renverra qu'1 seul [MODEL] de ta requête (si tu ne mets pas de limit, tu auras tout tes résultats de ta requête suivant tes [CONDITION SUR LES CHAMPS]
+{ sort : '[CHAMP] [ASC/DESC]' } // ça mettra tes [MODEL] dans l'ordre du CHAMP en ASCENDING(croissant) ou DESCENDING(décroissant)
+
+
+
+
+-----------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

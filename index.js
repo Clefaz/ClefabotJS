@@ -1,22 +1,28 @@
 const Discord = require("discord.js");
 const mongoose = require('mongoose');
+const moment = require('moment');
 mongoose.Promise = global.Promise;
 
 const bot = new Discord.Client();
 
 const FUNCTIONS = {};
 
+const debug = true;
+
 ///////////////////////////////////Schema de quotes
 QuoteSchema = new mongoose.Schema({
-    author : String, // le mec qui a écrit ça (son nom)
-    submitted_by : String, // le mec qui a envoyé la citation (son nom)
-    quote : String, // la citation
+    author: String, // le mec qui a écrit ça (son nom)
+    submitted_by: String, // le mec qui a envoyé la citation (son nom)
+    quote: String, // la citation
+    numero: Number,
+    time: String,
 });
+mongoose.model('Quotes', QuoteSchema);
 
 ///////////////////////////////////Connexion a la base de données
-if (mongoose.connection.readyState == 0){
+if (mongoose.connection.readyState == 0) {
     mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
-        if(err)
+        if (err)
             console.log('erreur de connection a la base de données');
         else
             console.log('connecté a la base de données');
@@ -24,26 +30,36 @@ if (mongoose.connection.readyState == 0){
 }
 
 ///////////////////////////////////Commandes
-FUNCTIONS.pd = function(msg) {
-    msg.reply('C\'EST TAMER LE PD !');
+FUNCTIONS.plug = function (msg) {
+    msg.channel.sendMessage('l\'adresse du plug est https://plug.dj/phoenixteammusic');
+}
+
+FUNCTIONS.rules = function (msg) {
+    msg.channel.sendFile('teste.txt');
+}
+
+FUNCTIONS.say = function (msg) {
+    var str = msg.content.substr(5)
+    msg.delete();
+    msg.channel.sendMessage(str);
 };    //DONE
 
-FUNCTIONS.ping = function(msg) {
+FUNCTIONS.ping = function (msg) {
     msg.reply('pong ! #joke');
 };    //DONE
 
-FUNCTIONS.pong = function(msg) {
+FUNCTIONS.pong = function (msg) {
     msg.reply('c\' est !ping, abruti !!');
 };    //DONE
 
-FUNCTIONS.introduction = function(msg){
+FUNCTIONS.introduction = function (msg) {
     msg.channel.sendMessage('bonjour a tous !, je suis ' + bot.user + ' \n' +
         'je suis ici pour vous aider autant que possible, après tout, c\'est ma principale fonction !\n' +
         'vous pouvez essayer de discuter avec moi mais pas sûr que je réponde :/ je vous avoue que je n\'en suis qu\'à ma version 1.0 :p\n' +
         'mais vous pourrez quand meme accéder a quelques commandes:\n' +
         '```' +
         '!help = je vous enverrai un MP avec de l\'aide ! :)\n' +
-        '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n'+
+        '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n' +
         '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
         '```' +
         'Mais la fonction principale sera sur le channel quote !\n' +
@@ -51,26 +67,26 @@ FUNCTIONS.introduction = function(msg){
         'c\'est tout pour le moment, il y aura plus de fonctionnalités dans de futures updates !');
 }
 
-FUNCTIONS.help = function(msg) {
+FUNCTIONS.help = function (msg) {
     msg.author.sendMessage('help sent');
     msg.reply('je viens de t\'envoyer un MP avec de l\'aide');
 };   //////TODO Completer l'aide
 
-FUNCTIONS.dbcheck = function(msg){
-    var status = mongoose.connection.readyState==1?'online':'offline /!\\ Contactez Clefaz.';
+FUNCTIONS.dbcheck = function (msg) {
+    var status = mongoose.connection.readyState == 1 ? 'online' : 'offline /!\\ Contactez Clefaz.';
     msg.channel.sendMessage('`Etat de la base de données : ' + status + '`');
 };  //DONE
 
 FUNCTIONS.invit = function (msg) {
-    bot.createInvite(msg.channel,{maxAge:1800,maxUses:1});
+    bot.createInvite(msg.channel, {maxAge: 1800, maxUses: 1});
 };  //TODO faire la fonction !invite
 
-FUNCTIONS.deletemessages = function(msg, args) {
+FUNCTIONS.deletemessages = function (msg, args) {
     var limite = 1 + parseInt(args[1]);
     if (limite == null || limite > 100)
         return;
     msg.channel.fetchMessages({limit: limite})
-        .then(function(messages) {
+        .then(function (messages) {
             msg.channel.bulkDelete(messages);
         });
 };  //TODO fixer le deletemessage !delete HH:MM-JJ/MM/AA
@@ -82,34 +98,43 @@ function quote(msg) {
             '-> " insert quote here " -Auteur ```');
         return;
     }
-    if  (mongoose.connection.readyState == 0) {
+    if (mongoose.connection.readyState == 0) {
         msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde (server offline)```');
         return;
     }
 
-    mongoose.model('Quotes', QuoteSchema);
-
-    var tmp = new mongoose.models.Quotes();
     var auteur = quote[2].split('-');
-    tmp.author = auteur[auteur.length - 1];
-    tmp.submitted_by = msg.author.username;
-    tmp.quote = quote[1];
+    mongoose.models.Quotes.find({},'numero', {limit: 1, sort: 'numero ASC'}, function (err, result) {
+        if (err) {
+            //err
+        } else {
+            console.log(result.); // les résultats
 
-    tmp.save(function (err) {
-        if (err){
-            console.log('erreur sauvegarde', err);
-            msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde (tmp.save)```');
-        }else {
-            console.log('citation enregistrée');
-            msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
-                'quote = ' + tmp.quote + '\n' +
-                'auteur = ' + tmp.author + '\n' +
-                'envoyé par = ' + tmp.submitted_by + '```');
+            var tmp = new mongoose.models.Quotes();
+            tmp.author = auteur[auteur.length - 1];//
+            tmp.submitted_by = msg.author.username;
+            tmp.quote = quote[1];
+            tmp.numero = result + 1;
+            tmp.time = moment.utc(msg.createdAt).format('DD/MM/YY HH:mm:ss');
+
+            tmp.save(function (err) {
+                if (err) {
+                    console.log('erreur sauvegarde', err);
+                    msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde (tmp.save)```');
+                } else {
+                    console.log('citation enregistrée');
+                    msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
+                        'quote n° #' + tmp.numero + ' = ' + tmp.quote + '\n' +
+                        'auteur = ' + tmp.author + '\n' +
+                        'envoyé par = ' + tmp.submitted_by + '\n' +
+                        'le' + tmp.time +
+                        '```');
+                }
+            });
         }
     });
-
     msg.channel.fetchMessages({limit: 20})
-        .then(function(messages) {
+        .then(function (messages) {
             messages.forEach(function (message) {
                 if (message.author.username == bot.user.username)
                     message.delete();
@@ -119,16 +144,20 @@ function quote(msg) {
 //
 
 ///////////////////////////////////Events
-bot.on('ready', function() {
+bot.on('ready', function () {
     console.log('Logged in as \"' + bot.user.username + '\"');
 });
 
-bot.on('message', function(msg) {
+bot.on('message', function (msg) {
     var args = msg.content.split(' ');
-    if(args[0].substr(0, 1) == '!') {
-        switch(args[0].substr(1)) {
-            case 'pd':
-                return FUNCTIONS.pd(msg);
+    if (args[0].substr(0, 1) == '!') {
+        switch (args[0].substr(1)) {
+            case 'say':
+                return FUNCTIONS.say(msg);
+            case 'plug':
+                return FUNCTIONS.plug(msg);
+            case 'rules':
+                return FUNCTIONS.rules(msg);
             case 'ping':
                 return FUNCTIONS.ping(msg);
             case 'pong':
@@ -147,10 +176,13 @@ bot.on('message', function(msg) {
                 return msg.reply('Commande Invalide -> !help');
         }
     }
-    if(args[0].substr(0, 1) == '\"' && msg.channel.name === 'quote')
+    if (args[0].substr(0, 1) == '\"' && msg.channel.name === 'quote')
         return quote(msg);
 });
 //
 
 ///////////////////////////////////Connexion au serveur
-bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C2D5Ww.lPi1isP-nFOAkD2HUp3brzg7y8Y');
+if (debug == true)
+    bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C2D5Ww.lPi1isP-nFOAkD2HUp3brzg7y8Y');   //Token debug
+else
+    bot.login('RILISE');   //Token release
