@@ -31,7 +31,7 @@ FUNCTIONS.ping = function(msg) {
 FUNCTIONS.help = function(msg) {
     msg.author.sendMessage('help sent');
     msg.reply('je viens de t\'envoyer un MP avec de l\'aide');
-};   //TODO Completer l'aide
+};   //////TODO Completer l'aide
 
 FUNCTIONS.dbcheck = function(msg){
     var status = mongoose.connection.readyState==1?'online':'offline /!\\ Contactez Clefaz.';
@@ -48,9 +48,9 @@ FUNCTIONS.deletemessages = function(msg, args) {
         return;
     msg.channel.fetchMessages({limit: limite})
         .then(function(messages) {
-            //msg.channel.bulkDelete(messages);
+            msg.channel.bulkDelete(messages);
         });
-};  //TODO fixer le deletemessage
+};  //TODO fixer le deletemessage !delete HH:MM-JJ/MM/AA
 
 function quote(msg) {
     mongoose.model('Quotes', QuoteSchema);
@@ -69,13 +69,13 @@ function quote(msg) {
     tmp.submitted_by = msg.author.username;
     tmp.quote = quote[1];
 
-    console.log(tmp);
+    if  (mongoose.connection.readyState == 0)
+        msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde (server offline)```');
 
     tmp.save(function (err) {
         if (err){
             console.log('erreur sauvegarde', err);
-            msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde\n' +
-                'Attention a ! ```');
+            msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde (tmp.save)```');
         }else {
             console.log('citation enregistrée');
             msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
@@ -84,6 +84,13 @@ function quote(msg) {
                 'envoyé par = ' + tmp.submitted_by + '```');
         }
     });
+    msg.channel.fetchMessages({limit: 20})
+        .then(function(messages) {
+            messages.forEach(function (message) {
+                if (message.author.username == bot.user.username)
+                    message.delete();
+            });
+        });
 };  //TODO ajouter la date et l'ID
 //
 
@@ -102,10 +109,10 @@ bot.on('message', function(msg) {
                 return FUNCTIONS.help(msg);
             case 'dbcheck' :
                 return FUNCTIONS.dbcheck(msg);
-            case 'invit' :
-                return FUNCTIONS.invit(msg);
-            case 'delete' :
-                return FUNCTIONS.deletemessages(msg,args);
+            //case 'invit' :
+            //    return FUNCTIONS.invit(msg);
+            //case 'delete' :
+            //    return FUNCTIONS.deletemessages(msg,args);
             default:
                 return msg.reply('Commande Invalide');
         }
