@@ -7,7 +7,7 @@ const bot = new Discord.Client();
 
 const FUNCTIONS = {};
 
-const debug = true;
+const debug = false;
 
 ///////////////////////////////////Schema de quotes
 QuoteSchema = new mongoose.Schema({
@@ -20,23 +20,25 @@ QuoteSchema = new mongoose.Schema({
 mongoose.model('Quotes', QuoteSchema);
 
 ///////////////////////////////////Connexion a la base de données
+
 if (mongoose.connection.readyState == 0) {
     mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
         if (err)
             console.log('erreur de connection a la base de données');
-        else
+        else {
             console.log('connecté a la base de données');
+        }
     });
 }
 
 ///////////////////////////////////Commandes
 FUNCTIONS.plug = function (msg) {
     msg.channel.sendMessage('l\'adresse du plug est https://plug.dj/phoenixteammusic');
-}
+};
 
 FUNCTIONS.rules = function (msg) {
-    msg.channel.sendFile('teste.txt');
-}
+    msg.channel.sendFile('rules.pdf');
+};
 
 FUNCTIONS.say = function (msg) {
     var str = msg.content.substr(5)
@@ -61,16 +63,22 @@ FUNCTIONS.introduction = function (msg) {
         '!help = je vous enverrai un MP avec de l\'aide ! :)\n' +
         '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n' +
         '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
+        '!rules = je posterai les règles du serveur\n' +
+        '!plug = si jamais vous avez oublié le lien du plug.dj ;)\n' +
         '```' +
         'Mais la fonction principale sera sur le channel quote !\n' +
         'en effet a présent, toutes les quotes que vous posterez seront **enregistrées** ! et on pourra a l\'avenir les consulter ! :)' +
         'c\'est tout pour le moment, il y aura plus de fonctionnalités dans de futures updates !');
-}
+};
 
 FUNCTIONS.help = function (msg) {
-    msg.author.sendMessage('help sent');
+    msg.author.sendMessage('```!help = je vous enverrai un MP avec de l\'aide ! :)\n' +
+    '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n' +
+    '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
+    '!rules = je posterai les règles du serveur\n' +
+    '!plug = si jamais vous avez oublié le lien du plug.dj ;)\n```');
     msg.reply('je viens de t\'envoyer un MP avec de l\'aide');
-};   //////TODO Completer l'aide
+};   //TODO Completer l'aide
 
 FUNCTIONS.dbcheck = function (msg) {
     var status = mongoose.connection.readyState == 1 ? 'online' : 'offline /!\\ Contactez Clefaz.';
@@ -104,12 +112,10 @@ function quote(msg) {
     }
 
     var auteur = quote[2].split('-');
-    mongoose.models.Quotes.find({},'numero', {limit: 1, sort: 'numero ASC'}, function (err, result) {
+    mongoose.models.Quotes.count({}, function (err, result) {
         if (err) {
             //err
         } else {
-            console.log(result.); // les résultats
-
             var tmp = new mongoose.models.Quotes();
             tmp.author = auteur[auteur.length - 1];//
             tmp.submitted_by = msg.author.username;
@@ -127,7 +133,7 @@ function quote(msg) {
                         'quote n° #' + tmp.numero + ' = ' + tmp.quote + '\n' +
                         'auteur = ' + tmp.author + '\n' +
                         'envoyé par = ' + tmp.submitted_by + '\n' +
-                        'le' + tmp.time +
+                        'le ' + tmp.time +
                         '```');
                 }
             });
@@ -140,7 +146,7 @@ function quote(msg) {
                     message.delete();
             });
         });
-};  //TODO ajouter la date et l'ID + affiner fonction delete
+};
 //
 
 ///////////////////////////////////Events
@@ -152,8 +158,6 @@ bot.on('message', function (msg) {
     var args = msg.content.split(' ');
     if (args[0].substr(0, 1) == '!') {
         switch (args[0].substr(1)) {
-            case 'say':
-                return FUNCTIONS.say(msg);
             case 'plug':
                 return FUNCTIONS.plug(msg);
             case 'rules':
@@ -167,7 +171,11 @@ bot.on('message', function (msg) {
             case 'dbcheck' :
                 return FUNCTIONS.dbcheck(msg);
             case 'introduction':
-                return FUNCTIONS.introduction(msg);
+                if (msg.member.roles.find('name','Admin'))
+                    return FUNCTIONS.introduction(msg);
+            case 'say':
+                if (msg.member.roles.find('name','Admin'))
+                    return FUNCTIONS.say(msg);
             //case 'invit' :
             //    return FUNCTIONS.invit(msg);
             //case 'delete' :
@@ -181,8 +189,9 @@ bot.on('message', function (msg) {
 });
 //
 
+
 ///////////////////////////////////Connexion au serveur
 if (debug == true)
-    bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C2D5Ww.lPi1isP-nFOAkD2HUp3brzg7y8Y');   //Token debug
+    bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C2ZgcQ.R_WGOAE_7ct4u6cgRYBAG-36LVY');   //Token debug
 else
-    bot.login('RILISE');   //Token release
+    bot.login('MjcwNTY3Mzk4NjM2MTI2MjA4.C2ZriA.ksQpJd3zkr8DDEz1ZRUkGYeowtY');   //Token release
