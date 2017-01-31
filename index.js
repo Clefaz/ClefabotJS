@@ -7,9 +7,8 @@ const bot = new Discord.Client();
 
 const FUNCTIONS = {};
 
-const debug = false;
+const debug = true;
 
-///////////////////////////////////Schema de quotes
 QuoteSchema = new mongoose.Schema({
     author: String, // le mec qui a écrit ça (son nom)
     submitted_by: String, // le mec qui a envoyé la citation (son nom)
@@ -17,9 +16,15 @@ QuoteSchema = new mongoose.Schema({
     numero: Number,
     time: String,
 });
-mongoose.model('Quotes', QuoteSchema);
-
-///////////////////////////////////Connexion a la base de données
+mongoose.model('quotes', QuoteSchema);
+InviteSchema = new mongoose.Schema({
+    tag: String, // le mec qui a écrit ça (son nom)
+    name: String,
+    tokens: Number,
+    maxtokens: Number,
+    lastfill: String,
+});
+mongoose.model('invites', InviteSchema);
 
 if (mongoose.connection.readyState == 0) {
     mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
@@ -34,11 +39,12 @@ if (mongoose.connection.readyState == 0) {
 ///////////////////////////////////Commandes
 FUNCTIONS.plug = function (msg) {
     msg.channel.sendMessage('l\'adresse du plug est https://plug.dj/phoenixteammusic');
-};
+};   //DONE
 
 FUNCTIONS.rules = function (msg) {
+    msg.reply('voila les règles !');
     msg.channel.sendFile('rules.pdf');
-};
+};  //DONE
 
 FUNCTIONS.say = function (msg) {
     var str = msg.content.substr(5)
@@ -48,11 +54,11 @@ FUNCTIONS.say = function (msg) {
 
 FUNCTIONS.ping = function (msg) {
     msg.reply('pong ! #joke');
-};    //DONE
+};   //DONE
 
 FUNCTIONS.pong = function (msg) {
     msg.reply('c\' est !ping, abruti !!');
-};    //DONE
+};   //DONE
 
 FUNCTIONS.introduction = function (msg) {
     msg.channel.sendMessage('bonjour a tous !, je suis ' + bot.user + ' \n' +
@@ -65,29 +71,67 @@ FUNCTIONS.introduction = function (msg) {
         '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
         '!rules = je posterai les règles du serveur\n' +
         '!plug = si jamais vous avez oublié le lien du plug.dj ;)\n' +
+        '!invit = je vous enverrai une invitation si vous souhaitez inviter quelqu\'un sur le discord\n' +
+        '\t\t vous ne pourrez pas inviter plus de 3 personnes en 1 mois. plus d\'infos avec !help\n'+
         '```' +
         'Mais la fonction principale sera sur le channel quote !\n' +
-        'en effet a présent, toutes les quotes que vous posterez seront **enregistrées** ! et on pourra a l\'avenir les consulter ! :)' +
-        'c\'est tout pour le moment, il y aura plus de fonctionnalités dans de futures updates !');
-};
+        'en effet a présent, toutes les quotes que vous posterez seront **enregistrées** ! et on pourra a l\'avenir les consulter ! :)\nn' +
+        'c\'est tout pour le moment, il y aura plus de fonctionnalités dans de futures updates !\n');
+};  //TODO Completer l'intro avec le !help
 
 FUNCTIONS.help = function (msg) {
     msg.author.sendMessage('```!help = je vous enverrai un MP avec de l\'aide ! :)\n' +
-    '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n' +
-    '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
-    '!rules = je posterai les règles du serveur\n' +
-    '!plug = si jamais vous avez oublié le lien du plug.dj ;)\n```');
+        '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n' +
+        '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
+        '!rules = je posterai les règles du serveur\n' +
+        '!plug = si jamais vous avez oublié le lien du plug.dj\n```');
     msg.reply('je viens de t\'envoyer un MP avec de l\'aide');
 };   //TODO Completer l'aide
 
 FUNCTIONS.dbcheck = function (msg) {
     var status = mongoose.connection.readyState == 1 ? 'online' : 'offline /!\\ Contactez Clefaz.';
     msg.channel.sendMessage('`Etat de la base de données : ' + status + '`');
-};  //DONE
+};//DONE
 
 FUNCTIONS.invit = function (msg) {
-    bot.createInvite(msg.channel, {maxAge: 1800, maxUses: 1});
-};  //TODO faire la fonction !invite
+    mongoose.models.invites.findOne({tag: msg.author.discriminator},function (err, tag) {
+        if (err) {
+            msg.reply('erreur de database /!\\ merci de contacter Clefaz');
+        } else {
+            if (tag == null) {
+                tag = new mongoose.models.invites();
+                tag.tag = msg.author.discriminator;
+                tag.name = msg.author.username;
+                tag.tokens = 3;
+                tag.maxtokens = 3;
+                tag.lastfill = moment.utc(msg.createdAt).format('DD/MM/YY');
+            } else {
+                if (tag.lastfill === null) {
+                    tag.tokens = tag.maxtokens;
+                    tag.lastfill = moment.utc(msg.createdAt).format('DD/MM/YY');
+                }
+            }
+            if (tag.tokens > 0) {
+                tag.tokens--;
+                msg.reply('je t\'ai envoyé une invit\n il t\'en reste: '+tag.tokens+' / '+tag.maxtokens);
+                msg.channel.createInvite({maxAge: 1800, maxUses: 1})
+                    .then(function (result) {
+                        console.log(result);
+                        msg.author.sendMessage("VOILA FDP "+result);
+                    });
+            } else {
+                msg.reply('vous avez deja invité ' + tag.maxtokens + ' personnes depuis le mois dernier, vous pourrez en inviter d\'autres a partir du '+tag.lastfill);
+            }
+        }
+        mongoose.models.invites.remove({tag: msg.author.discriminator});
+        tag.save(function (err) {
+            if (err) {
+                console.log('saved')
+            }
+        });
+    });
+    msg.delete();
+};  //TODO finir la fonction !invite avec la date
 
 FUNCTIONS.deletemessages = function (msg, args) {
     var limite = 1 + parseInt(args[1]);
@@ -102,8 +146,7 @@ FUNCTIONS.deletemessages = function (msg, args) {
 function quote(msg) {
     var quote = msg.content.split('\"');
     if (quote.length != 3) {
-        msg.channel.sendMessage('```MARKDOWN\n\#Quote Invalide\n' +
-            '-> " insert quote here " -Auteur ```');
+        msg.channel.sendMessage('```MARKDOWN\n\#Quote Invalide\n' + '-> " insert quote here " -Auteur ```');
         return;
     }
     if (mongoose.connection.readyState == 0) {
@@ -113,16 +156,13 @@ function quote(msg) {
 
     var auteur = quote[2].split('-');
     mongoose.models.Quotes.count({}, function (err, result) {
-        if (err) {
-            //err
-        } else {
+        if (!err){
             var tmp = new mongoose.models.Quotes();
             tmp.author = auteur[auteur.length - 1];//
             tmp.submitted_by = msg.author.username;
             tmp.quote = quote[1];
             tmp.numero = result + 1;
             tmp.time = moment.utc(msg.createdAt).format('DD/MM/YY HH:mm:ss');
-
             tmp.save(function (err) {
                 if (err) {
                     console.log('erreur sauvegarde', err);
@@ -135,10 +175,8 @@ function quote(msg) {
                         'envoyé par = ' + tmp.submitted_by + '\n' +
                         'le ' + tmp.time +
                         '```');
-                }
-            });
-        }
-    });
+                }});
+        }});
     msg.channel.fetchMessages({limit: 20})
         .then(function (messages) {
             messages.forEach(function (message) {
@@ -146,8 +184,7 @@ function quote(msg) {
                     message.delete();
             });
         });
-};
-//
+};               //TODO fixer le systeme de numero de quote
 
 ///////////////////////////////////Events
 bot.on('ready', function () {
@@ -176,10 +213,11 @@ bot.on('message', function (msg) {
             case 'say':
                 if (msg.member.roles.find('name','Admin'))
                     return FUNCTIONS.say(msg);
-            //case 'invit' :
-            //    return FUNCTIONS.invit(msg);
-            //case 'delete' :
-            //    return FUNCTIONS.deletemessages(msg,args);
+            case 'invit' :
+                return FUNCTIONS.invit(msg, bot);
+            case 'delete' :
+                if (msg.member.roles.find('name','Admin'))
+                    return FUNCTIONS.deletemessages(msg,args);
             default:
                 return msg.reply('Commande Invalide -> !help');
         }
@@ -187,8 +225,6 @@ bot.on('message', function (msg) {
     if (args[0].substr(0, 1) == '\"' && msg.channel.name === 'quote')
         return quote(msg);
 });
-//
-
 
 ///////////////////////////////////Connexion au serveur
 if (debug == true)
