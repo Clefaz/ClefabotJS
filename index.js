@@ -7,13 +7,22 @@ const bot = new Discord.Client();
 
 const FUNCTIONS = {};
 
-const debug = true;
+const debug = false;
+
+mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
+    if (err){
+        console.log('erreur de connection a la base de données');
+    }
+    else {
+        console.log('connecté a la base de données');
+    }
+});
+
 
 QuoteSchema = new mongoose.Schema({
     author: String, // le mec qui a écrit ça (son nom)
     submitted_by: String, // le mec qui a envoyé la citation (son nom)
     quote: String, // la citation
-    numero: Number,
     time: String,
 });
 mongoose.model('quotes', QuoteSchema);
@@ -25,16 +34,6 @@ InviteSchema = new mongoose.Schema({
     lastfill: String,
 });
 mongoose.model('invites', InviteSchema);
-
-if (mongoose.connection.readyState == 0) {
-    mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
-        if (err)
-            console.log('erreur de connection a la base de données');
-        else {
-            console.log('connecté a la base de données');
-        }
-    });
-}
 
 ///////////////////////////////////Commandes
 FUNCTIONS.plug = function (msg) {
@@ -66,31 +65,36 @@ FUNCTIONS.introduction = function (msg) {
         'vous pouvez essayer de discuter avec moi mais pas sûr que je réponde :/ je vous avoue que je n\'en suis qu\'à ma version 1.0 :p\n' +
         'mais vous pourrez quand meme accéder a quelques commandes:\n' +
         '```' +
-        '!help = je vous enverrai un MP avec de l\'aide ! :)\n' +
-        '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n' +
-        '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
-        '!rules = je posterai les règles du serveur\n' +
-        '!plug = si jamais vous avez oublié le lien du plug.dj ;)\n' +
-        '!invit = je vous enverrai une invitation si vous souhaitez inviter quelqu\'un sur le discord\n' +
-        '\t\t vous ne pourrez pas inviter plus de 3 personnes en 1 mois. plus d\'infos avec !help\n'+
+        '\n!help = je vous enverrai de l\'aide ! :)'+
+        '\n!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)'+
+        '\n!rules = je posterai les règles du serveur'+
+        '\n!plug = si jamais vous avez oublié le lien du plug.dj'+
+        '\n!invit = je vous enverrai une invitation pour rejoindre le discord (valable pour 1 personne et dans la demi-heure qui suit. vous pouvez en générer maximum 3 par mois)'+
         '```' +
         'Mais la fonction principale sera sur le channel quote !\n' +
-        'en effet a présent, toutes les quotes que vous posterez seront **enregistrées** ! et on pourra a l\'avenir les consulter ! :)\nn' +
+        'en effet a présent, toutes les quotes que vous posterez seront **enregistrées** ! et on pourra a l\'avenir les consulter ! :)\n' +
+        'respectez seulement cette syntaxe: `"quote" -auteur`' +
         'c\'est tout pour le moment, il y aura plus de fonctionnalités dans de futures updates !\n');
-};  //TODO Completer l'intro avec le !help
+};  //DONE
 
 FUNCTIONS.help = function (msg) {
-    msg.author.sendMessage('```!help = je vous enverrai un MP avec de l\'aide ! :)\n' +
-        '!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)\n' +
-        '!dbcheck = vérifie l\'état de la base de données, si jamais vous pensez qu\'il y a un soucis\n' +
-        '!rules = je posterai les règles du serveur\n' +
-        '!plug = si jamais vous avez oublié le lien du plug.dj\n```');
-    msg.reply('je viens de t\'envoyer un MP avec de l\'aide');
-};   //TODO Completer l'aide
+    msg.reply('\n!help = je vous enverrai de l\'aide ! :)'+
+    '\n!ping = si je suis en ligne, je vous répondrai (ne sers qu\'a tester la connexion.)'+
+    '\n!rules = je posterai les règles du serveur'+
+    '\n!plug = si jamais vous avez oublié le lien du plug.dj'+
+    '\n!invit = je vous enverrai une invitation pour rejoindre le discord (valable pour 1 personne et dans la demi-heure qui suit. vous pouvez en générer maximum 3 par mois)'+
+    '\nla derniere et principale feature est dans le salon #quote, mais elle est automatique, respectez seulement cette syntaxe: `"quote" -auteur`');
+};  //DONE
 
-FUNCTIONS.dbcheck = function (msg) {
-    var status = mongoose.connection.readyState == 1 ? 'online' : 'offline /!\\ Contactez Clefaz.';
-    msg.channel.sendMessage('`Etat de la base de données : ' + status + '`');
+FUNCTIONS.dbtest = function () {
+    mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
+        if (err){
+            console.log('erreur de connection a la base de données');
+        }
+        else {
+            console.log('connecté a la base de données');
+        }
+    });
 };//DONE
 
 FUNCTIONS.invit = function (msg) {
@@ -106,32 +110,33 @@ FUNCTIONS.invit = function (msg) {
                 tag.maxtokens = 3;
                 tag.lastfill = moment.utc(msg.createdAt).format('DD/MM/YY');
             } else {
-                if (tag.lastfill === null) {
+                while (moment(tag.lastfill,'DD/MM/YY').add(1,'months') < moment.utc(msg.createdAt)) {
                     tag.tokens = tag.maxtokens;
-                    tag.lastfill = moment.utc(msg.createdAt).format('DD/MM/YY');
+                    tag.lastfill = moment(tag.lastfill,'DD/MM/YY').add(1,'months').format('DD/MM/YY');
                 }
             }
             if (tag.tokens > 0) {
                 tag.tokens--;
-                msg.reply('je t\'ai envoyé une invit\n il t\'en reste: '+tag.tokens+' / '+tag.maxtokens);
+                msg.reply('je t\'ai envoyé une invit\n il t\'en reste: ' + tag.tokens + ' / ' + tag.maxtokens + '\nrechargement le ' + moment(tag.lastfill,'DD/MM/YY').add(1,'months').format('DD/MM/YY'));
                 msg.channel.createInvite({maxAge: 1800, maxUses: 1})
                     .then(function (result) {
-                        console.log(result);
                         msg.author.sendMessage("VOILA FDP "+result);
                     });
             } else {
-                msg.reply('vous avez deja invité ' + tag.maxtokens + ' personnes depuis le mois dernier, vous pourrez en inviter d\'autres a partir du '+tag.lastfill);
+                msg.reply('vous avez deja invité ' + tag.maxtokens +
+                    ' personnes depuis le mois dernier, vous pourrez en inviter d\'autres a partir du ' +
+                    moment(tag.lastfill,'DD/MM/YY').add(1,'months').format('DD/MM/YY'));
             }
         }
         mongoose.models.invites.remove({tag: msg.author.discriminator});
         tag.save(function (err) {
             if (err) {
-                console.log('saved')
+                console.log('error')
             }
         });
     });
     msg.delete();
-};  //TODO finir la fonction !invite avec la date
+};  //DONE
 
 FUNCTIONS.deletemessages = function (msg, args) {
     var limite = 1 + parseInt(args[1]);
@@ -142,6 +147,11 @@ FUNCTIONS.deletemessages = function (msg, args) {
             msg.channel.bulkDelete(messages);
         });
 };  //TODO fixer le deletemessage !delete HH:MM-JJ/MM/AA
+
+FUNCTIONS.neperms = function (msg) {
+    msg.reply('tu n\'a pas la permission d\'utiliser cette commande !');
+    msg.delete();
+};
 
 function quote(msg) {
     var quote = msg.content.split('\"');
@@ -161,7 +171,6 @@ function quote(msg) {
             tmp.author = auteur[auteur.length - 1];//
             tmp.submitted_by = msg.author.username;
             tmp.quote = quote[1];
-            tmp.numero = result + 1;
             tmp.time = moment.utc(msg.createdAt).format('DD/MM/YY HH:mm:ss');
             tmp.save(function (err) {
                 if (err) {
@@ -170,7 +179,7 @@ function quote(msg) {
                 } else {
                     console.log('citation enregistrée');
                     msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
-                        'quote n° #' + tmp.numero + ' = ' + tmp.quote + '\n' +
+                        'quote n° #' + result + 1 + ' = ' + tmp.quote + '\n' +
                         'auteur = ' + tmp.author + '\n' +
                         'envoyé par = ' + tmp.submitted_by + '\n' +
                         'le ' + tmp.time +
@@ -184,11 +193,12 @@ function quote(msg) {
                     message.delete();
             });
         });
-};               //TODO fixer le systeme de numero de quote
+};
 
 ///////////////////////////////////Events
 bot.on('ready', function () {
     console.log('Logged in as \"' + bot.user.username + '\"');
+    bot.user.setGame('by Clefaz :)');
 });
 
 bot.on('message', function (msg) {
@@ -205,19 +215,28 @@ bot.on('message', function (msg) {
                 return FUNCTIONS.pong(msg);
             case 'help':
                 return FUNCTIONS.help(msg);
-            case 'dbcheck' :
-                return FUNCTIONS.dbcheck(msg);
+            case 'dbtest' :
+                if (msg.member.roles.find('name','Admin'))
+                    return FUNCTIONS.dbtest();
+                else return FUNCTIONS.neperms(msg);
             case 'introduction':
                 if (msg.member.roles.find('name','Admin'))
                     return FUNCTIONS.introduction(msg);
+                else return FUNCTIONS.neperms(msg);
             case 'say':
                 if (msg.member.roles.find('name','Admin'))
                     return FUNCTIONS.say(msg);
+                return FUNCTIONS.neperms(msg);
             case 'invit' :
-                return FUNCTIONS.invit(msg, bot);
+                if (msg.member.roles.find('name','Admin') ||
+                    msg.member.roles.find('name','Membres') ||
+                    msg.member.roles.find('name','Habitués'))
+                    return FUNCTIONS.invit(msg, bot);
+                else return FUNCTIONS.neperms(msg);
             case 'delete' :
                 if (msg.member.roles.find('name','Admin'))
                     return FUNCTIONS.deletemessages(msg,args);
+                else return FUNCTIONS.neperms(msg);
             default:
                 return msg.reply('Commande Invalide -> !help');
         }
