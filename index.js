@@ -7,7 +7,7 @@ const bot = new Discord.Client();
 
 const FUNCTIONS = {};
 
-const debug = false;
+const debug = true;
 
 mongoose.connect('mongodb://localhost:27017/clefabot', function (err) {
     if (err){
@@ -156,34 +156,50 @@ FUNCTIONS.neperms = function (msg) {
 function quote(msg) {
     var quote = msg.content.split('\"');
     if (quote.length != 3) {
-        msg.channel.sendMessage('```MARKDOWN\n\#Quote Invalide\n' + '-> " insert quote here " -Auteur ```');
+        var embed = new Discord.RichEmbed();
+        embed.setColor('#ff522c');
+        embed.setDescription('Erreur de syntaxe !\n\" Quote a citer \" --Auteur');
+        msg.channel.sendEmbed(embed);
         return;
     }
     if (mongoose.connection.readyState == 0) {
-        msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde (server offline)```');
+
+        var embed = new Discord.RichEmbed();
+        embed.setColor('#ff522c');
+        embed.setDescription('Erreur de sauvegarde !\nProblème de Database \n-> go appeler Clefaz');
+        msg.channel.sendEmbed(embed);
         return;
     }
 
     var auteur = quote[2].split('-');
-    mongoose.models.Quotes.count({}, function (err, result) {
+    mongoose.models.quotes.count({}, function (err, result) {
         if (!err){
-            var tmp = new mongoose.models.Quotes();
+            var tmp = new mongoose.models.quotes();
             tmp.author = auteur[auteur.length - 1];//
             tmp.submitted_by = msg.author.username;
             tmp.quote = quote[1];
-            tmp.time = moment.utc(msg.createdAt).format('DD/MM/YY HH:mm:ss');
+            tmp.time = moment.utc(msg.createdAt).add(1,'hour').format('DD/MM/YY HH:mm');
             tmp.save(function (err) {
                 if (err) {
                     console.log('erreur sauvegarde', err);
                     msg.channel.sendMessage('```MARKDOWN\n\#Erreur de sauvegarde (tmp.save)```');
                 } else {
                     console.log('citation enregistrée');
+
+                    var embed = new Discord.RichEmbed();
+                    embed.setFooter('Saved by ' + tmp.submitted_by + ' -- Quote n°' + (result + 1) + ' -- ' + tmp.time);
+                    embed.setAuthor(tmp.author);
+                    embed.setColor('#3386d5');
+                    embed.setDescription(tmp.quote);
+                    msg.channel.sendEmbed(embed);
+
+/*
                     msg.channel.sendMessage('```MARKDOWN\n\#Derniere quote enregistrée dans la base de données:\n' +
                         'quote n° #' + result + 1 + ' = ' + tmp.quote + '\n' +
                         'auteur = ' + tmp.author + '\n' +
                         'envoyé par = ' + tmp.submitted_by + '\n' +
                         'le ' + tmp.time +
-                        '```');
+                        '```');*/
                 }});
         }});
     msg.channel.fetchMessages({limit: 20})
@@ -247,6 +263,6 @@ bot.on('message', function (msg) {
 
 ///////////////////////////////////Connexion au serveur
 if (debug == true)
-    bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C2ZgcQ.R_WGOAE_7ct4u6cgRYBAG-36LVY');   //Token debug
+    bot.login('MjcwODM4NTg4MjIzMTI3NTUy.C7LEgg.jjDomvRtETCm2zjpX98W7S-wxAI');   //Token debug
 else
     bot.login('MjcwNTY3Mzk4NjM2MTI2MjA4.C2ZriA.ksQpJd3zkr8DDEz1ZRUkGYeowtY');   //Token release
